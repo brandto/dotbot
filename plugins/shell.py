@@ -1,7 +1,6 @@
-import os, subprocess
-from . import Executor
+import os, subprocess, dotbot
 
-class CommandRunner(Executor):
+class Shell(dotbot.Plugin):
     '''
     Run arbitrary shell commands.
     '''
@@ -13,23 +12,24 @@ class CommandRunner(Executor):
 
     def handle(self, directive, data):
         if directive != self._directive:
-            raise ValueError('CommandRunner cannot handle directive %s' %
+            raise ValueError('Shell cannot handle directive %s' %
                 directive)
         return self._process_commands(data)
 
     def _process_commands(self, data):
         success = True
+        defaults = self._context.defaults().get('shell', {})
         with open(os.devnull, 'w') as devnull:
             for item in data:
                 stdin = stdout = stderr = devnull
                 if isinstance(item, dict):
                     cmd = item['command']
                     msg = item.get('description', None)
-                    if item.get('stdin', False) is True:
+                    if item.get('stdin', defaults.get('stdin', False)) is True:
                         stdin = None
-                    if item.get('stdout', False) is True:
+                    if item.get('stdout', defaults.get('stdout', False)) is True:
                         stdout = None
-                    if item.get('stderr', False) is True:
+                    if item.get('stderr', defaults.get('stderr', False)) is True:
                         stderr = None
                 elif isinstance(item, list):
                     cmd = item[0]
@@ -42,7 +42,7 @@ class CommandRunner(Executor):
                 else:
                     self._log.lowinfo('%s [%s]' % (msg, cmd))
                 ret = subprocess.call(cmd, shell=True, stdin=stdin, stdout=stdout,
-                    stderr=stderr, cwd=self._base_directory)
+                    stderr=stderr, cwd=self._context.base_directory())
                 if ret != 0:
                     success = False
                     self._log.warning('Command [%s] failed' % cmd)

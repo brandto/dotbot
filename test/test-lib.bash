@@ -1,6 +1,9 @@
-DEBUG=false
-DOTFILES='/home/vagrant/dotfiles'
+DEBUG=${DEBUG:-false}
+USE_VAGRANT=${USE_VAGRANT:-true}
+DOTBOT_EXEC=${DOTBOT_EXEC:-"/dotbot/bin/dotbot"}
+DOTFILES="/home/$(whoami)/dotfiles"
 INSTALL_CONF='install.conf.yaml'
+INSTALL_CONF_JSON='install.conf.json'
 
 test_run_() {
     if ! ${DEBUG}; then
@@ -34,7 +37,9 @@ check_vm() {
 }
 
 initialize() {
-    check_vm
+    if ${USE_VAGRANT}; then
+        check_vm
+    fi
     echo "${test_description}"
     mkdir -p "${DOTFILES}"
     cd
@@ -44,7 +49,15 @@ run_dotbot() {
     (
         cd "${DOTFILES}"
         cat > "${INSTALL_CONF}"
-        /dotbot/bin/dotbot -d . -c "${INSTALL_CONF}" "${@}"
+        ${DOTBOT_EXEC} -d . -c "${INSTALL_CONF}" "${@}"
+    )
+}
+
+run_dotbot_json() {
+    (
+        cd "${DOTFILES}"
+        cat > "${INSTALL_CONF_JSON}"
+        ${DOTBOT_EXEC} -d . -c "${INSTALL_CONF_JSON}" "${@}"
     )
 }
 

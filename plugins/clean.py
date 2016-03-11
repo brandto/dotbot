@@ -1,7 +1,6 @@
-import os
-from . import Executor
+import os, dotbot
 
-class Cleaner(Executor):
+class Clean(dotbot.Plugin):
     '''
     Cleans broken symbolic links.
     '''
@@ -13,7 +12,7 @@ class Cleaner(Executor):
 
     def handle(self, directive, data):
         if directive != self._directive:
-            raise ValueError('Cleaner cannot handle directive %s' % directive)
+            raise ValueError('Clean cannot handle directive %s' % directive)
         return self._process_clean(data)
 
     def _process_clean(self, targets):
@@ -37,7 +36,7 @@ class Cleaner(Executor):
         for item in os.listdir(os.path.expanduser(target)):
             path = os.path.join(os.path.expanduser(target), item)
             if not os.path.exists(path) and os.path.islink(path):
-                if self._in_directory(path, self._base_directory):
+                if self._in_directory(path, self._context.base_directory()):
                     self._log.lowinfo('Removing invalid link %s -> %s' %
                         (path, os.path.join(os.path.dirname(path), os.readlink(path))))
                     os.remove(path)

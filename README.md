@@ -1,6 +1,13 @@
 Dotbot
 ======
 
+Dotbot makes installing your dotfiles as easy as `git clone $url && cd dotfiles
+&& ./install`, even on a freshly installed system!
+
+---
+
+[![Build Status](https://travis-ci.org/anishathalye/dotbot.svg?branch=master)](https://travis-ci.org/anishathalye/dotbot)
+
 Dotbot is a tool that bootstraps your dotfiles (it's a [Dot]files
 [bo]o[t]strapper, get it?). It does *less* than you think, because version
 control systems do more than you think.
@@ -71,12 +78,16 @@ Here's an example of a complete configuration.
 The conventional name for the configuration file is `install.conf.yaml`.
 
 ```yaml
+- defaults:
+    link:
+      relink: true
+
 - clean: ['~']
 
 - link:
     ~/.dotfiles: ''
     ~/.tmux.conf: tmux.conf
-    ~/.vim: vim/
+    ~/.vim: vim
     ~/.vimrc: vimrc
 
 - shell:
@@ -91,13 +102,20 @@ The conventional name for this file is `install.conf.json`.
 ```json
 [
     {
+        "defaults": {
+            "link": {
+                "relink": true
+            }
+        }
+    },
+    {
         "clean": ["~"]
     },
     {
         "link": {
             "~/.dotfiles": "",
             "~/.tmux.conf": "tmux.conf",
-            "~/.vim": "vim/",
+            "~/.vim": "vim",
             "~/.vimrc": "vimrc"
         }
     },
@@ -109,12 +127,13 @@ The conventional name for this file is `install.conf.json`.
 ]
 ```
 
-## Configuration
+Configuration
+-------------
 
-Dotbot uses YAML or JSON formatted configuration files to let you specify how to
-set up your dotfiles. Currently, Dotbot knows how to [link](#link) files and
+Dotbot uses YAML or JSON formatted configuration files to let you specify how
+to set up your dotfiles. Currently, Dotbot knows how to [link](#link) files and
 folders, execute [shell](#shell) commands, and [clean](#clean) directories of
-broken symbolic links.
+broken symbolic links. Dotbot also supports user plugins for custom commands.
 
 **Ideally, bootstrap configurations should be idempotent. That is, the
 installer should be able to be run multiple times without causing any
@@ -139,7 +158,7 @@ files if necessary. Environment variables in paths are automatically expanded.
 
 Link commands are specified as a dictionary mapping targets to source
 locations. Source locations are specified relative to the base directory (that
-is specified when running the installer). Source directory names should contain
+is specified when running the installer). Directory names should *not* contain
 a trailing "/" character.
 
 Link commands support an (optional) extended configuration. In this type of
@@ -147,8 +166,9 @@ configuration, instead of specifying source locations directly, targets are
 mapped to extended configuration dictionaries. These dictionaries map `path` to
 the source path, specify `create` as `true` if the parent directory should be
 created if necessary, specify `relink` as `true` if incorrect symbolic links
-should be automatically overwritten, and specify `force` as `true` if the file
-or directory should be forcibly linked.
+should be automatically overwritten, specify `force` as `true` if the file or
+directory should be forcibly linked, and specify `relative` as `true` if the
+symbolic link should have a relative path.
 
 #### Example
 
@@ -156,8 +176,8 @@ or directory should be forcibly linked.
 - link:
     ~/.config/terminator:
       create: true
-      path: config/terminator/
-    ~/.vim: vim/
+      path: config/terminator
+    ~/.vim: vim
     ~/.vimrc:
       relink: true
       path: vimrc
@@ -216,6 +236,45 @@ Clean commands are specified as an array of directories to be cleaned.
 - clean: ['~']
 ```
 
+### Defaults
+
+Default options for plugins can be specified so that options don't have to be
+repeated many times. This can be very useful to use with the link command, for
+example.
+
+Defaults apply to all commands that follow setting the defaults. Defaults can
+be set multiple times; each change replaces the defaults with a new set of
+options.
+
+#### Format
+
+Defaults are specified as a dictionary mapping action names to settings, which
+are dictionaries from option names to values.
+
+#### Example
+
+```yaml
+- defaults:
+    link:
+      create: true
+      relink: true
+```
+
+### Plugins
+
+Dotbot also supports custom directives implemented by plugins. Plugins are
+implemented as subclasses of `dotbot.Plugin`, so they must implement
+`can_handle()` and `handle()`. The `can_handle()` method should return `True`
+if the plugin can handle an action with the given name. The `handle()` method
+should do something and return whether or not it completed successfully.
+
+All built-in Dotbot directives are written as plugins that are loaded by
+default, so those can be used as a reference when writing custom plugins.
+
+Plugins are loaded using the `--plugin` and `--plugin-dir` options, using
+either absolute paths or paths relative to the base directory. It is
+recommended that these options are added directly to the `install` script.
+
 Contributing
 ------------
 
@@ -225,7 +284,7 @@ Do you have a feature request, bug report, or patch? Great! See
 License
 -------
 
-Copyright (c) 2014-2015 Anish Athalye. Released under the MIT License. See
+Copyright (c) 2014-2016 Anish Athalye. Released under the MIT License. See
 [LICENSE.md][license] for details.
 
 [init-dotfiles]: https://github.com/Aviator45003/init-dotfiles

@@ -1,7 +1,6 @@
-import os, shutil
-from . import Executor
+import os, shutil, dotbot
 
-class Linker(Executor):
+class Link(dotbot.Plugin):
     '''
     Symbolically links dotfiles.
     '''
@@ -13,29 +12,33 @@ class Linker(Executor):
 
     def handle(self, directive, data):
         if directive != self._directive:
-            raise ValueError('Linker cannot handle directive %s' % directive)
+            raise ValueError('Link cannot handle directive %s' % directive)
         return self._process_links(data)
 
     def _process_links(self, links):
         success = True
+        defaults = self._context.defaults().get('link', {})
         for destination, source in links.items():
             source = os.path.expandvars(source)
             destination = os.path.expandvars(destination)
+            relative = defaults.get('relative', False)
+            force = defaults.get('force', False)
+            relink = defaults.get('relink', False)
+            create = defaults.get('create', False)
             if isinstance(source, dict):
                 # extended config
+                relative = source.get('relative', relative)
+                force = source.get('force', force)
+                relink = source.get('relink', relink)
+                create = source.get('create', create)
                 path = source['path']
-                force = source.get('force', False)
-                relink = source.get('relink', False)
-                create = source.get('create', False)
-                if create:
-                    success &= self._create(destination)
-                if force:
-                    success &= self._delete(path, destination, force=True)
-                elif relink:
-                    success &= self._delete(path, destination, force=False)
             else:
                 path = source
-            success &= self._link(path, destination)
+            if create:
+                success &= self._create(destination)
+            if force or relink:
+                success &= self._delete(path, destination, force=force)
+            success &= self._link(path, destination, relative)
         if success:
             self._log.info('All links have been set up')
         else:
@@ -78,7 +81,7 @@ class Linker(Executor):
 
     def _delete(self, source, path, force):
         success = True
-        source = os.path.join(self._base_directory, source)
+        source = os.path.join(self._context.base_directory(), source)
         if ((self._is_link(path) and self._link_destination(path) != source) or
                 (self._exists(path) and not self._is_link(path))):
             fullpath = os.path.expanduser(path)
@@ -102,21 +105,25 @@ class Linker(Executor):
                     self._log.lowinfo('Removing %s' % path)
         return success
 
-    def _link(self, source, link_name):
+    def _link(self, source, link_name, relative):
         '''
         Links link_name to source.
 
         Returns true if successfully linked files.
         '''
         success = False
-        source = os.path.join(self._base_directory, source)
+        source = os.path.join(self._context.base_directory(), source)
         if (not self._exists(link_name) and self._is_link(link_name) and
                 self._link_destination(link_name) != source):
             self._log.warning('Invalid link %s -> %s' %
                 (link_name, self._link_destination(link_name)))
         elif not self._exists(link_name) and self._exists(source):
             try:
-                os.symlink(source, os.path.expanduser(link_name))
+                destination = os.path.expanduser(link_name)
+                if relative:
+                    destination_dir = os.path.dirname(destination)
+                    source = os.path.relpath(source, destination_dir)
+                os.symlink(source, destination)
             except OSError:
                 self._log.warning('Linking failed %s -> %s' % (link_name, source))
             else:
